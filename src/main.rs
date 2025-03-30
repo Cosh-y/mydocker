@@ -1,6 +1,7 @@
 mod run;
 mod container;
 
+use simple_logger::SimpleLogger;
 use clap::{Parser, Subcommand};
 use run::run;
 
@@ -13,16 +14,15 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum DockerSubCmd {
-    Init,
     Run {
         image: String,
     },
 }
 
 fn main() {
+    SimpleLogger::new().init().unwrap();
     let cli = Cli::parse();
     match cli.subcommand {
-        DockerSubCmd::Init => println!("Init command not yet implemented"),
         DockerSubCmd::Run { image } => run(image),
     }
 }

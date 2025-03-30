@@ -1,11 +1,12 @@
 use libc::{
     c_void, clone, waitpid, CLONE_NEWIPC, CLONE_NEWNET, CLONE_NEWNS, CLONE_NEWPID, CLONE_NEWUTS, SIGCHLD
 };
+use log::{info, error};
 
 use crate::container::init_process; // what?? what is the rule of mod and use exactly!?
 
 pub fn run(command: String) {
-    println!("Run image {}", command);
+    info!("Run image {}", command);
     const STACK_SIZE: usize = 1024 * 1024;
     let mut stack = [0; STACK_SIZE];
     unsafe {
@@ -22,7 +23,7 @@ pub fn run(command: String) {
             command.as_ptr() as *mut c_void
         );
         if ret == -1 {
-            println!("Error: clone failed");
+            error!("Error: clone failed");
         }
         waitpid(ret, std::ptr::null_mut(), 0);
     }
