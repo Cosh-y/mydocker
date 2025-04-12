@@ -19,8 +19,8 @@ enum DockerSubCmd {
         #[arg(long)]        // 对应一个命名选项参数 --cpu 20
         cpu: Option<u32>,   // Option 表示参数是可选的
 
-        #[arg(long)]        // 对应一个命名选项参数 --mem 20
-        mem: Option<u32>,   // Option 表示参数是可选的
+        #[arg(long)]        // 对应一个命名选项参数 --mem 10m
+        mem: Option<String>,   // Option 表示参数是可选的
         
         image: String,      // 对应一个固定位置参数
     },

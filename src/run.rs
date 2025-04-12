@@ -8,7 +8,7 @@ use crate::cgroupsv2::{CGroupManager, ResourceConfig};
 
 pub struct RunArg {
     pub cpu: Option<u32>,
-    pub mem: Option<u32>,
+    pub mem: Option<String>,
     pub image: String,
 }
 
@@ -35,7 +35,7 @@ pub fn run(command: DockerSubCmd) {
          * caller's context, no child process is created, and errno is set to
          * indicate the error. [linux man7.org]
          */
-        let ret = clone(init_process, 
+        let ret = clone(init_process,   // 使用 libc 中 clone 创建子进程并将子进程放入新的 namespace
             stack.as_mut_ptr().add(STACK_SIZE) as *mut c_void,
             flags,
             Box::into_raw(run_arg) as *mut c_void,
@@ -55,6 +55,7 @@ pub fn run(command: DockerSubCmd) {
 
         waitpid(ret, std::ptr::null_mut(), 0); // 等待子进程/容器进程结束
         
+        cgroupv2_manager.check_cgroup_memory_events(); // 检查 cgroup 内存事件
         cgroupv2_manager.destroy_cgroup();
     }
 }

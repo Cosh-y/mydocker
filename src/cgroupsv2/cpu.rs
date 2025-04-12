@@ -1,5 +1,4 @@
-use super::manager::CGroupIf;
-use super::manager::{ResourceConfig, CGROUP_ROOTPATH};
+use super::manager::{CGroupIf, ResourceConfig, CGROUP_ROOTPATH};
 
 pub struct CGroupCPU {
 
