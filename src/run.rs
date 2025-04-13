@@ -1,7 +1,7 @@
 use libc::{
-    c_void, pipe, clone, write, close, waitpid, CLONE_NEWIPC, CLONE_NEWNET, CLONE_NEWNS, CLONE_NEWPID, CLONE_NEWUTS, SIGCHLD
+    c_void, clone, waitpid, CLONE_NEWIPC, CLONE_NEWNET, CLONE_NEWNS, CLONE_NEWPID, CLONE_NEWUTS, SIGCHLD
 };
-use log::{info, error};
+use log::error;
 
 use crate::{container::init_process, DockerSubCmd};
 use crate::cgroupsv2::{CGroupManager, ResourceConfig};
