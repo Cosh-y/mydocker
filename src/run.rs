@@ -3,19 +3,21 @@ use libc::{
 };
 use log::error;
 
-use crate::{container::init_process, DockerSubCmd};
+use crate::container::{init_process, new_workspace, delete_workspace};
+use crate::DockerSubCmd;
 use crate::cgroupsv2::{CGroupManager, ResourceConfig};
 
 pub struct RunArg {
     pub cpu: Option<u32>,
     pub mem: Option<String>,
     pub image: String,
+    pub rootfs: String,
 }
 
 impl RunArg {
     fn new(cmd: DockerSubCmd) -> Self {
         match cmd {
-            DockerSubCmd::Run { cpu, mem, image } => RunArg { cpu, mem, image },
+            DockerSubCmd::Run { cpu, mem, image } => RunArg { cpu, mem, image, rootfs: ".".to_string() },
         }
     }
     
@@ -35,6 +37,9 @@ pub fn run(command: DockerSubCmd) {
          * caller's context, no child process is created, and errno is set to
          * indicate the error. [linux man7.org]
          */
+
+        new_workspace(&run_arg.rootfs); // 创建 overlayfs 的工作空间
+
         let ret = clone(init_process,   // 使用 libc 中 clone 创建子进程并将子进程放入新的 namespace
             stack.as_mut_ptr().add(STACK_SIZE) as *mut c_void,
             flags,
@@ -57,5 +62,7 @@ pub fn run(command: DockerSubCmd) {
         
         cgroupv2_manager.check_cgroup_memory_events(); // 检查 cgroup 内存事件
         cgroupv2_manager.destroy_cgroup();
+
+        delete_workspace(&run_arg.rootfs); // 删除 overlayfs 的工作空间
     }
 }

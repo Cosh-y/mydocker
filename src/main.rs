@@ -1,6 +1,7 @@
 mod run;
 mod container;
 mod cgroupsv2;
+mod utils;
 
 use simple_logger::SimpleLogger;
 use clap::{Parser, Subcommand};
@@ -33,6 +34,5 @@ fn main() {
         DockerSubCmd::Run { .. } => {
             run(cli.subcommand);
         }
-        // DockerSubCmd::Run { image } => run(image),
     }
 }

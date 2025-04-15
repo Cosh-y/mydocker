@@ -1,98 +1,68 @@
 use libc::{access, c_void, chdir, execvp, mkdir, mount, perror, rmdir, syscall, umount2, SYS_pivot_root, MNT_DETACH, MS_BIND, MS_PRIVATE, MS_REC};
 use log::{info, error};
+use crate::utils::*;
+use crate::cstr;
 
 use crate::run::RunArg;
 
-fn setup_mount() {
+fn setup_mount(root: &str) {
     unsafe {
-        if mount("\0".as_ptr() as *const i8, 
-                "/\0".as_ptr() as *const i8,
-                "\0".as_ptr() as *const i8,
-                MS_PRIVATE | MS_REC,
-                std::ptr::null()
-            ) < 0 {
-            error!("Error: mount failed");
-            perror(std::ptr::null());
-            return ;
-        }
+        check_libc_ret(
+            mount(cstr!(""), cstr!("/"), cstr!(""), MS_PRIVATE | MS_REC, std::ptr::null()), 
+            "remount / failed"
+        );
 
-        let new_root = "./busybox\0".as_ptr() as *const i8;
+        let new_root = root.to_string() + "/merged\0";
+        let new_root = new_root.as_ptr() as *const i8;
         // pivot_root(new_root, put_old) 的要求之一是：
         // new_root 和 put_old（旧的根目录）必须处于不同的挂载点（mount point）上，也就是：
         // 不能是同一个文件系统（same mount）这是为了避免死循环或“移动自己”这种不可预测的行为。你不能把一个目录挂到它自己内部。
         // 将 new_root 绑定挂载为一个新的 mount point 即可，哪怕它本质上和 old_root 还是在同一个文件系统中
         // 使用 MS_BIND 和 MS_REC 选项来实现这个自己挂载到自己的递归式的绑定挂载
-        if mount(new_root, new_root, "\0".as_ptr() as *const i8, MS_BIND | MS_REC, std::ptr::null()) < 0 {
-            error!("Error: mount failed");
-            perror(std::ptr::null());
-            return ;
-        }
+        check_libc_ret(
+            mount(new_root, new_root, cstr!(""), MS_BIND | MS_REC, std::ptr::null()), 
+            "remount new root failed"
+        );
 
         // 新建目录 .old_root
-        let old_root = "./busybox/.old_root\0".as_ptr() as *const i8;
+        let old_root = root.to_string() + "/merged/.old_root\0";
+        let old_root = old_root.as_ptr() as *const i8;
         if access(old_root, libc::F_OK) != 0 {
-            if mkdir(old_root, 0o755) < 0 {
-                error!("Error: mkdir failed");
-                perror(std::ptr::null());
-                return ;
-            }
+            check_libc_ret(mkdir(old_root, 0o755), "mkdir failed");
         }
 
+        info!("executing pivot_root, change rootfs");
         if syscall(SYS_pivot_root, new_root, old_root) < 0 {
             error!("Error: pivot_root failed");
             perror(std::ptr::null());
-            return ;
+            std::process::exit(1);
         }
 
         // 切换到新的根目录
-        if chdir("/\0".as_ptr() as *const i8) < 0 {
-            error!("Error: chdir failed");
-            perror(std::ptr::null());
-            return ;
-        }
+        check_libc_ret(chdir(cstr!("/")), "chdir failed");
 
         // 查看当前的工作目录
-        let current_working_dir = std::env::current_dir().unwrap();
-        info!("Current working directory: {:?}", current_working_dir);
+        // let current_working_dir = std::env::current_dir().unwrap();
+        // info!("Current working directory: {:?}", current_working_dir);
 
         // 卸载旧的根目录
-        let old_root = "/.old_root\0".as_ptr() as *const i8; // 这里的 old_root 是新的根目录下的 .old_root 目录
-        if umount2(old_root, MNT_DETACH) < 0 {
-            error!("Error: umount failed");
-            perror(std::ptr::null());
-            return ;
-        }
+        let old_root = cstr!("/.old_root"); // 这里的 old_root 是新的根目录下的 .old_root 目录
+        check_libc_ret(umount2(old_root, MNT_DETACH), "umount failed");
 
         // 删除旧的根目录
-        if rmdir(old_root) < 0 {
-            error!("Error: rmdir failed");
-            perror(std::ptr::null());
-            return ;
-        }
+        check_libc_ret(rmdir(old_root), "rmdir failed");
 
         // 挂载 proc 文件系统
-        if mount("proc\0".as_ptr() as *const i8, 
-                        "/proc\0".as_ptr() as *const i8, 
-                        "proc\0".as_ptr() as *const i8, 
-                        0, 
-                        std::ptr::null()
-                    ) < 0 {
-            error!("Error: mount failed");
-            perror(std::ptr::null());
-            return ;
-        }
+        check_libc_ret(
+            mount(cstr!("proc"), cstr!("/proc"), cstr!("proc"), 0, std::ptr::null()), 
+            "mount failed"
+        );
 
         // 挂载 dev 文件系统
-        if mount("devtmpfs\0".as_ptr() as *const i8, 
-                        "/dev\0".as_ptr() as *const i8, 
-                        "devtmpfs\0".as_ptr() as *const i8, 
-                        0, 
-                        std::ptr::null()
-                    ) < 0 {
-            error!("Error: mount failed");
-            perror(std::ptr::null());
-            return ;
-        }
+        check_libc_ret(
+            mount(cstr!("devtmpfs"), cstr!("/dev"), cstr!("devtmpfs"), 0, std::ptr::null()), 
+            "mount failed"
+        );
     }
 }
 
@@ -100,7 +70,7 @@ pub extern "C" fn init_process(arg: *mut c_void) -> i32 {
     let run_arg_ref = unsafe { &*(arg as *mut RunArg) };
     info!("Init process started with args: image {} cpu {}", run_arg_ref.image, run_arg_ref.cpu.unwrap_or(0));
     
-    setup_mount();
+    setup_mount(&run_arg_ref.rootfs);
 
     unsafe {
         let argv = [run_arg_ref.image.as_ptr() as *const i8, std::ptr::null()];
