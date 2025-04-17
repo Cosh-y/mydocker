@@ -1,4 +1,5 @@
 mod run;
+mod commit;
 mod container;
 mod cgroupsv2;
 mod utils;
@@ -6,6 +7,7 @@ mod utils;
 use simple_logger::SimpleLogger;
 use clap::{Parser, Subcommand};
 use run::run;
+use commit::commit_container;
 
 #[derive(Parser)]
 #[command(author)]
@@ -14,9 +16,10 @@ struct Cli {
     subcommand: DockerSubCmd,
 }
 
-#[derive(Subcommand, Clone)]
+#[derive(Subcommand)]
 enum DockerSubCmd {
     Run(RunCommand),
+    Commit(CommitCommand),
 }
 
 #[derive(Parser, Clone, Debug)]
@@ -30,12 +33,20 @@ struct RunCommand {
     image: String,
 }
 
+#[derive(Parser)]
+struct CommitCommand {
+    image: String,
+}
+
 fn main() {
     SimpleLogger::new().init().unwrap();
     let cli = Cli::parse();
     match cli.subcommand {
         DockerSubCmd::Run(run_command) => {
             run(run_command);
-        }
+        },
+        DockerSubCmd::Commit(commit_command) => {
+            commit_container(&commit_command.image);
+        },
     }
 }

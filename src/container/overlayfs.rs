@@ -2,7 +2,7 @@ use libc::{mount, umount, mkdir, access};
 use log::info;
 use crate::utils::*;
 use crate::cstr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 // 这里在确定 root 参数类型时从 String、&String 和 &str 中选择了 &str
 // String 涉及所有权的转移

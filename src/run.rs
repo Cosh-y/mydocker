@@ -7,7 +7,7 @@ use crate::container::{init_process, new_workspace, delete_workspace};
 use crate::RunCommand;
 use crate::cgroupsv2::{CGroupManager, ResourceConfig};
 
-static ROOTFS: &str = ".";
+pub static ROOTFS: &str = ".";
 
 pub struct RunArg {
     pub image: String,
