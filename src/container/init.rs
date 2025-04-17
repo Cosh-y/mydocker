@@ -68,7 +68,7 @@ fn setup_mount(root: &str) {
 
 pub extern "C" fn init_process(arg: *mut c_void) -> i32 {
     let run_arg_ref = unsafe { &*(arg as *mut RunArg) };
-    info!("Init process started with args: image {} cpu {}", run_arg_ref.image, run_arg_ref.cpu.unwrap_or(0));
+    info!("Init process started with args: image {}", run_arg_ref.image);
     
     setup_mount(&run_arg_ref.rootfs);
 

@@ -2,17 +2,55 @@ use libc::{mount, umount, mkdir, access};
 use log::info;
 use crate::utils::*;
 use crate::cstr;
+use std::path::{Path, PathBuf};
 
-// 这里在确定参数类型时从 String、&String 和 &str 中选择了 &str
+// 这里在确定 root 参数类型时从 String、&String 和 &str 中选择了 &str
 // String 涉及所有权的转移
 // &String 的引用不如 &str 灵活，比如 &str 能接收 "abc" 这样的字符串字面量，而 &String 不能
 // &str 还能接收 String 的引用，会自动调用 deref 进行转换
-pub fn new_workspace(root: &str) {
+pub fn new_workspace(root: &str, volumn: Option<&str>) {
     info!("Creating overlayfs workspace at {}", root);
     info!("Create some directories and mount overlayfs to merged.");
     create_lower(root);
     create_others(root);
     mount_overlayfs(root);
+
+    if let Some(volumn) = volumn {
+        info!("Mounting volume {}", volumn);
+        let (volume, mount_point) = parse_volume(volumn);
+        let mount_point = PathBuf::from(format!("{}/merged{}", root, mount_point.display()));
+        if !mount_point.exists() {
+            panic!("Mount point {} does not exist", mount_point.display());
+        }
+        if !mount_point.is_dir() {
+            panic!("Mount point {} is not a directory", mount_point.display());
+        }
+        // 绑定挂载
+        nix::mount::mount(
+            Some(&volume),
+            &mount_point,
+            None::<&str>,
+            nix::mount::MsFlags::MS_BIND,
+            None::<&str>,
+        ).expect("Bind mount failed");
+
+        info!("Successfully mounted {} to {}", volume.display(), mount_point.display());
+    }
+}
+
+fn parse_volume(volume: &str) -> (PathBuf, PathBuf) {
+    let (volume, mount_point) = volume.split_once(':').expect("Invalid volume format");
+    let volume = PathBuf::from(volume);
+    let mount_point = PathBuf::from(mount_point);
+
+    if !volume.exists() {
+        panic!("Volume {} does not exist", volume.display());
+    }
+
+    if !volume.is_dir() {
+        panic!("Volume {} is not a directory", volume.display());
+    }
+    return (volume, mount_point);
 }
 
 fn create_lower(root: &str) {
@@ -58,7 +96,14 @@ fn mount_overlayfs(root: &str) {
     };
 }
 
-pub fn delete_workspace(root: &str) {
+pub fn delete_workspace(root: &str, volumn: Option<&str>) {
+    if let Some(volumn) = volumn {
+        info!("Unmount bind volume {}", volumn);
+        let (.., mount_point) = parse_volume(volumn);
+        let mount_point = PathBuf::from(format!("{}/merged{}", root, mount_point.display()));
+        nix::mount::umount(&mount_point).expect("Unmount bind volume failed");
+    }
+    
     info!("Deleting overlayfs workspace at {}", root);
     let merged = format!("{}/merged\0", root);
     let merged = merged.as_ptr() as *const i8;
