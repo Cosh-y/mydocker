@@ -6,8 +6,9 @@ mod utils;
 
 use simple_logger::SimpleLogger;
 use clap::{Parser, Subcommand};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use run::run;
+use container::ps;
 use commit::commit_container;
 
 #[derive(Parser)]
@@ -21,9 +22,10 @@ struct Cli {
 enum DockerSubCmd {
     Run(RunCommand),
     Commit(CommitCommand),
+    Ps(PsCommand),
 }
 
-#[derive(Parser, Clone, Serialize, Debug)]
+#[derive(Parser, Clone, Serialize, Deserialize, Debug)]
 struct RunCommand {
     #[arg(long)]
     cpu: Option<u32>,
@@ -39,6 +41,12 @@ struct CommitCommand {
     image: String,
 }
 
+#[derive(Parser)]
+struct PsCommand {
+    #[arg(long, short)]
+    all: bool,
+}
+
 fn main() {
     SimpleLogger::new().init().unwrap();
     let cli = Cli::parse();
@@ -48,6 +56,9 @@ fn main() {
         },
         DockerSubCmd::Commit(commit_command) => {
             commit_container(&commit_command.image);
+        },
+        DockerSubCmd::Ps(ps_command) => {
+            ps(ps_command);
         },
     }
 }
