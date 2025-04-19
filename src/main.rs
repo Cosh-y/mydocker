@@ -6,6 +6,7 @@ mod utils;
 
 use simple_logger::SimpleLogger;
 use clap::{Parser, Subcommand};
+use serde::Serialize;
 use run::run;
 use commit::commit_container;
 
@@ -22,7 +23,7 @@ enum DockerSubCmd {
     Commit(CommitCommand),
 }
 
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Serialize, Debug)]
 struct RunCommand {
     #[arg(long)]
     cpu: Option<u32>,

@@ -3,7 +3,7 @@ use libc::{
 };
 use log::error;
 
-use crate::container::{init_process, new_workspace, delete_workspace};
+use crate::container::{init_process, new_workspace, delete_workspace, init_metainfo};
 use crate::RunCommand;
 use crate::cgroupsv2::{CGroupManager, ResourceConfig};
 
@@ -51,6 +51,8 @@ pub fn run(command: RunCommand) {
         if ret == -1 {
             error!("Error: clone failed");
         }
+
+        init_metainfo(ret as u32, command.clone()); // 初始化容器的元信息
 
         // let run_arg = RunArg::new(command);
         let cgroupv2_manager = CGroupManager::new("mydocker".to_string());
