@@ -2,7 +2,9 @@ mod run;
 mod commit;
 mod container;
 mod cgroupsv2;
-mod utils;
+mod rm;
+mod start;
+mod stop;
 
 use simple_logger::SimpleLogger;
 use clap::{Parser, Subcommand};
@@ -10,6 +12,9 @@ use serde::{Deserialize, Serialize};
 use run::run;
 use container::ps;
 use commit::commit_container;
+use start::start;
+use stop::stop;
+use rm::rm;
 
 #[derive(Parser)]
 #[command(author)]
@@ -23,6 +28,9 @@ enum DockerSubCmd {
     Run(RunCommand),
     Commit(CommitCommand),
     Ps(PsCommand),
+    Stop(StopCommand),
+    Start(StartCommand),
+    Rm(RmCommand),
 }
 
 #[derive(Parser, Clone, Serialize, Deserialize, Debug)]
@@ -49,6 +57,21 @@ struct PsCommand {
     all: bool,
 }
 
+#[derive(Parser)]
+struct StopCommand {
+    container_id: String,
+}
+
+#[derive(Parser)]
+struct StartCommand {
+    container_id: String,
+}
+
+#[derive(Parser)]
+struct RmCommand {
+    container_id: String,
+}
+
 fn main() {
     SimpleLogger::new().init().unwrap();
     let cli = Cli::parse();
@@ -61,6 +84,15 @@ fn main() {
         },
         DockerSubCmd::Ps(ps_command) => {
             ps(ps_command);
+        },
+        DockerSubCmd::Stop(stop_command) => {
+            stop(stop_command);
+        },
+        DockerSubCmd::Start(start_command) => {
+            start(start_command);
+        },
+        DockerSubCmd::Rm(rm_command) => {
+            rm(rm_command);
         },
     }
 }

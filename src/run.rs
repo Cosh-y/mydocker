@@ -3,7 +3,7 @@ use libc::{
 };
 use log::error;
 
-use crate::container::{delete_workspace, gen_id, init_metainfo, init_process, new_workspace, record_exit};
+use crate::container::{delete_workspace, gen_id, init_metainfo, init_process, metainfo_exists, new_workspace, record_exit, record_running};
 use crate::RunCommand;
 use crate::cgroupsv2::{CGroupManager, ResourceConfig};
 
@@ -26,8 +26,11 @@ impl RunArg {
 }
 
 pub fn run(command: RunCommand) {
-    
     let container_id = gen_id();
+    run_container(command, container_id);
+}
+
+pub fn run_container(command: RunCommand, container_id: String) {
     let run_arg = Box::new(RunArg::new(&container_id, &command.command));
 
     const STACK_SIZE: usize = 1024 * 1024;
@@ -54,7 +57,11 @@ pub fn run(command: RunCommand) {
             error!("Error: clone failed");
         }
 
-        init_metainfo(&container_id, ret as u32, command.clone()); // 初始化容器的元信息
+        if !metainfo_exists(&container_id) {
+            init_metainfo(&container_id, ret as u32, command.clone()); // 初始化容器的元信息
+        } else {
+            record_running(&container_id, ret as u32); // 记录容器的运行状态
+        }
 
         // let run_arg = RunArg::new(command);
         let cgroupv2_manager = CGroupManager::new(container_id.clone());
@@ -72,6 +79,6 @@ pub fn run(command: RunCommand) {
 
         delete_workspace(&container_id, volume); // 删除 overlayfs 的工作空间
 
-        record_exit(container_id); // 记录容器的退出状态
+        record_exit(&container_id); // 记录容器的退出状态
     }
 }

@@ -9,7 +9,7 @@ const METAINFO_BASE_PATH: &str = "/root/.mydocker/containers/";
 
 #[derive(Serialize, Deserialize)]
 struct Metainfo {
-    pid: u32,
+    pid: Option<u32>,
     id: String,
     command: RunCommand,
     status: String,
@@ -17,7 +17,7 @@ struct Metainfo {
 
 pub fn init_metainfo(container_id: &str, pid: u32, command: RunCommand) -> String {
     let metainfo = Metainfo {
-        pid,
+        pid: Some(pid),
         id: container_id.to_string(),
         command,
         status: "running".to_string(),
@@ -31,6 +31,11 @@ pub fn init_metainfo(container_id: &str, pid: u32, command: RunCommand) -> Strin
     return metainfo.id;
 }
 
+pub fn delete_metainfo(container_id: &str) {
+    let metainfo_dir = format!("{}{}/", METAINFO_BASE_PATH, container_id);
+    std::fs::remove_dir_all(&metainfo_dir).expect("Failed to delete metainfo directory");
+}
+
 pub fn gen_id() -> String {
     let mut rng = rand::rng();
     let nums: Vec<i32> = (0..10).collect();
@@ -41,7 +46,7 @@ pub fn gen_id() -> String {
     id
 }
 
-pub fn record_exit(container_id: String) {
+pub fn record_exit(container_id: &str) {
     let metainfo_file = format!("{}{}/config.json", METAINFO_BASE_PATH, container_id);
 
     // use serde_json to read metainfo file
@@ -49,6 +54,21 @@ pub fn record_exit(container_id: String) {
     let mut metainfo: Metainfo = serde_json::from_str(&metainfo_content).expect("Failed to deserialize metainfo");
 
     metainfo.status = "exited".to_string();
+    metainfo.pid = None;
+
+    let metainfo_json = serde_json::to_string(&metainfo).expect("Failed to serialize metainfo");
+    std::fs::write(&metainfo_file, metainfo_json).expect("Failed to write metainfo file");
+}
+
+pub fn record_running(container_id: &str, pid: u32) {
+    let metainfo_file = format!("{}{}/config.json", METAINFO_BASE_PATH, container_id);
+
+    // use serde_json to read metainfo file
+    let metainfo_content = std::fs::read_to_string(&metainfo_file).expect("Failed to read metainfo file");
+    let mut metainfo: Metainfo = serde_json::from_str(&metainfo_content).expect("Failed to deserialize metainfo");
+
+    metainfo.status = "running".to_string();
+    metainfo.pid = Some(pid);
 
     let metainfo_json = serde_json::to_string(&metainfo).expect("Failed to serialize metainfo");
     std::fs::write(&metainfo_file, metainfo_json).expect("Failed to write metainfo file");
@@ -70,4 +90,32 @@ pub fn ps(command: PsCommand) {
             }
         }
     }
+}
+
+fn get_metainfo(container_id: &str) -> Metainfo {
+    let metainfo_file = format!("{}{}/config.json", METAINFO_BASE_PATH, container_id);
+    let metainfo_content = std::fs::read_to_string(&metainfo_file).expect("Failed to read metainfo file");
+    let metainfo: Metainfo = serde_json::from_str(&metainfo_content).expect("Failed to deserialize metainfo");
+    return metainfo;
+}
+
+pub fn get_pid(container_id: &str) -> u32 {
+    get_metainfo(container_id).pid.unwrap()
+}
+
+pub fn is_running(container_id: &str) -> bool {
+    get_metainfo(container_id).status == "running"
+}
+
+pub fn get_volume(container_id: &str) -> Option<String> {
+    get_metainfo(container_id).command.volume
+}
+
+pub fn get_command(container_id: &str) -> RunCommand {
+    get_metainfo(container_id).command
+}
+
+pub fn metainfo_exists(container_id: &str) -> bool {
+    let metainfo_file = format!("{}{}/config.json", METAINFO_BASE_PATH, container_id);
+    std::fs::metadata(metainfo_file).is_ok()
 }
