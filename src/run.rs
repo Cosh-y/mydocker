@@ -3,22 +3,23 @@ use libc::{
 };
 use log::error;
 
-use crate::container::{init_process, new_workspace, delete_workspace, init_metainfo, record_exit};
+use crate::container::{delete_workspace, gen_id, init_metainfo, init_process, new_workspace, record_exit};
 use crate::RunCommand;
 use crate::cgroupsv2::{CGroupManager, ResourceConfig};
 
-pub static ROOTFS: &str = ".";
+pub const IMAGE_BASE_PATH: &str = "/root/.mydocker/image/";         // 镜像存储路径
+pub const ROOTFS_BASE_PATH: &str = "/root/.mydocker/overlay2/";     // 镜像以 OverlayFS 的形式 mount 的位置
 
 pub struct RunArg {
-    pub image: String,
-    pub rootfs: String,
+    pub container_id: String,
+    pub command: String,
 }
 
 impl RunArg {
-    fn new(cmd: RunCommand) -> Self {
+    fn new(container_id: &str, command: &str) -> Self {
         RunArg {
-            image: cmd.image,
-            rootfs: String::from(ROOTFS),
+            container_id: container_id.to_string(),
+            command: command.to_string(),
         }
     }
     
@@ -26,10 +27,14 @@ impl RunArg {
 
 pub fn run(command: RunCommand) {
     
-    let run_arg = Box::new(RunArg::new(command.clone()));
+    let container_id = gen_id();
+    let run_arg = Box::new(RunArg::new(&container_id, &command.command));
 
     const STACK_SIZE: usize = 1024 * 1024;
     let mut stack = [0; STACK_SIZE];
+
+    let volume: Option<&str> = command.volume.as_deref(); // 获取 volume 的值
+    new_workspace(&container_id, &command.image, volume); // 创建 overlayfs 的工作空间，mount volumn 目录
 
     unsafe {
         let flags = CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWNET | CLONE_NEWIPC | SIGCHLD;
@@ -40,9 +45,6 @@ pub fn run(command: RunCommand) {
          * indicate the error. [linux man7.org]
          */
 
-        let volume: Option<&str> = command.volume.as_deref(); // 获取 volume 的值
-        new_workspace(ROOTFS, volume); // 创建 overlayfs 的工作空间
-
         let ret = clone(init_process,   // 使用 libc 中 clone 创建子进程并将子进程放入新的 namespace
             stack.as_mut_ptr().add(STACK_SIZE) as *mut c_void,
             flags,
@@ -52,10 +54,10 @@ pub fn run(command: RunCommand) {
             error!("Error: clone failed");
         }
 
-        let container_id = init_metainfo(ret as u32, command.clone()); // 初始化容器的元信息
+        init_metainfo(&container_id, ret as u32, command.clone()); // 初始化容器的元信息
 
         // let run_arg = RunArg::new(command);
-        let cgroupv2_manager = CGroupManager::new("mydocker".to_string());
+        let cgroupv2_manager = CGroupManager::new(container_id.clone());
         cgroupv2_manager.create_cgroup();
         cgroupv2_manager.set(ResourceConfig {
             cpu: command.cpu,
@@ -68,7 +70,7 @@ pub fn run(command: RunCommand) {
         cgroupv2_manager.check_cgroup_memory_events(); // 检查 cgroup 内存事件
         cgroupv2_manager.destroy_cgroup();
 
-        delete_workspace(ROOTFS, volume); // 删除 overlayfs 的工作空间
+        delete_workspace(&container_id, volume); // 删除 overlayfs 的工作空间
 
         record_exit(container_id); // 记录容器的退出状态
     }

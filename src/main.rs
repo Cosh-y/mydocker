@@ -34,10 +34,12 @@ struct RunCommand {
     #[arg(long, short)]
     volume: Option<String>,
     image: String,
+    command: String,
 }
 
 #[derive(Parser)]
 struct CommitCommand {
+    container_id: String,
     image: String,
 }
 
@@ -55,7 +57,7 @@ fn main() {
             run(run_command);
         },
         DockerSubCmd::Commit(commit_command) => {
-            commit_container(&commit_command.image);
+            commit_container(&commit_command.container_id, &commit_command.image);
         },
         DockerSubCmd::Ps(ps_command) => {
             ps(ps_command);

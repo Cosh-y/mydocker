@@ -1,9 +1,11 @@
+use std::fs::exists;
+
 use log::info;
 
 use super::cpu::CGroupCPU;
 use super::memory::CGroupMemory;
 
-pub const CGROUP_ROOTPATH: &str = "/sys/fs/cgroup";
+pub const CGROUP_ROOTPATH: &str = "/sys/fs/cgroup/mydocker";
 
 pub trait CGroupIf {
     fn set(&self, path: &String, resource_config: &ResourceConfig);
@@ -15,12 +17,17 @@ pub struct ResourceConfig {
 }
 
 pub struct CGroupManager {
-    path: String,
+    path: String,   // 以 container_id 作为子目录的名称
     cgroups: Vec<Box<dyn CGroupIf>>,
 }
 
 impl CGroupManager {
     pub fn new(path: String) -> Self {
+        if !exists(CGROUP_ROOTPATH).unwrap() {
+            std::fs::create_dir_all(CGROUP_ROOTPATH).expect("Failed to create cgroup root path");
+            std::fs::write(CGROUP_ROOTPATH.to_string() + "/cgroup.subtree_control", "+cpu +memory").expect("Failed to write cgroup.subtree_control");
+        }
+
         CGroupManager {
             path,
             cgroups: vec![

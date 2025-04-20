@@ -15,10 +15,10 @@ struct Metainfo {
     status: String,
 }
 
-pub fn init_metainfo(pid: u32, command: RunCommand) -> String {
+pub fn init_metainfo(container_id: &str, pid: u32, command: RunCommand) -> String {
     let metainfo = Metainfo {
         pid,
-        id: gen_id(),
+        id: container_id.to_string(),
         command,
         status: "running".to_string(),
     };
@@ -31,7 +31,7 @@ pub fn init_metainfo(pid: u32, command: RunCommand) -> String {
     return metainfo.id;
 }
 
-fn gen_id() -> String {
+pub fn gen_id() -> String {
     let mut rng = rand::rng();
     let nums: Vec<i32> = (0..10).collect();
     let mut id = String::new();
@@ -49,7 +49,7 @@ pub fn record_exit(container_id: String) {
     let mut metainfo: Metainfo = serde_json::from_str(&metainfo_content).expect("Failed to deserialize metainfo");
 
     metainfo.status = "exited".to_string();
-    
+
     let metainfo_json = serde_json::to_string(&metainfo).expect("Failed to serialize metainfo");
     std::fs::write(&metainfo_file, metainfo_json).expect("Failed to write metainfo file");
 }
