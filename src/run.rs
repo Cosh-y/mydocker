@@ -13,13 +13,15 @@ pub const ROOTFS_BASE_PATH: &str = "/root/.mydocker/overlay2/";     // 镜像以
 pub struct RunArg {
     pub container_id: String,
     pub command: String,
+    pub args: Vec<String>,
 }
 
 impl RunArg {
-    fn new(container_id: &str, command: &str) -> Self {
+    fn new(container_id: &str, command: &str, args: Vec<String>) -> Self {
         RunArg {
             container_id: container_id.to_string(),
             command: command.to_string(),
+            args: args,
         }
     }
     
@@ -31,7 +33,7 @@ pub fn run(command: RunCommand) {
 }
 
 pub fn run_container(command: RunCommand, container_id: String) {
-    let run_arg = Box::new(RunArg::new(&container_id, &command.command));
+    let run_arg = Box::new(RunArg::new(&container_id, &command.command, command.args.clone()));
 
     const STACK_SIZE: usize = 1024 * 1024;
     let mut stack = [0; STACK_SIZE];
@@ -72,6 +74,9 @@ pub fn run_container(command: RunCommand, container_id: String) {
         });
         cgroupv2_manager.add_process(ret as u32); // 将子进程添加到 cgroup 中
 
+        if command.detach {
+            return ;
+        }
         waitpid(ret, std::ptr::null_mut(), 0); // 等待子进程/容器进程结束
         
         cgroupv2_manager.check_cgroup_memory_events(); // 检查 cgroup 内存事件

@@ -1,6 +1,7 @@
-use libc::{c_void, execvp, perror, syscall, SYS_pivot_root};
+use libc::{c_void, perror, syscall, SYS_pivot_root};
 use log::{info, error};
 use nix::mount::{mount, umount2, MntFlags, MsFlags};
+use nix::unistd::execvp;
 use std::{ffi::CString, path::Path, env::set_current_dir, fs::remove_dir_all};
 
 use crate::run::{RunArg, ROOTFS_BASE_PATH};
@@ -65,19 +66,10 @@ pub extern "C" fn init_process(arg: *mut c_void) -> i32 {
         }
     }
 
-    unsafe {
-        let c_command = CString::new(run_arg_ref.command.clone()).unwrap();
-        let argv = [c_command.as_ptr(), std::ptr::null()];
-        // execvp 的第一个参数是要加载执行的可执行文件的路径，第二个参数是一个字符串数组，表示要传递给可执行文件的参数列表
-        // 当使用用 busybox 构成的 rootfs 时，无论第一个参数是 /bin/ls 还是 /bin/pwd 执行的都是 busybox
-        // 他们实际上是 /bin/busybox 的硬链接
-        // 而 /bin/busybox 会读取 argv[0] 的值来决定执行哪个命令，比如 argv[0] 是 /bin/ls 时，busybox 就会执行 ls 命令
-        let ret = execvp("/bin/busybox\0".as_ptr() as *const i8, argv.as_ptr() as *const *const i8);
-        if ret < 0 {
-            error!("Error: exec failed");
-            perror(std::ptr::null());
-            return -1;
-        }
-    }
+    let args = std::iter::once(&run_arg_ref.command).chain(run_arg_ref.args.iter())
+        .map(|arg| CString::new(arg.clone()).unwrap())
+        .collect::<Vec<_>>();
+    execvp(&CString::new(run_arg_ref.command.clone()).unwrap(), args.as_slice()).expect("execvp failed");
+
     return 0;
 }

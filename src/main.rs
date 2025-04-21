@@ -41,8 +41,11 @@ struct RunCommand {
     mem: Option<String>,
     #[arg(long, short)]
     volume: Option<String>,
+    #[arg(long, short)]
+    detach: bool,
     image: String,
     command: String,
+    args: Vec<String>,
 }
 
 #[derive(Parser)]
