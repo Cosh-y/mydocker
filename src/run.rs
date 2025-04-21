@@ -14,14 +14,16 @@ pub struct RunArg {
     pub container_id: String,
     pub command: String,
     pub args: Vec<String>,
+    pub detach: bool,
 }
 
 impl RunArg {
-    fn new(container_id: &str, command: &str, args: Vec<String>) -> Self {
+    fn new(container_id: &str, command: &str, args: Vec<String>, detach: bool) -> Self {
         RunArg {
             container_id: container_id.to_string(),
             command: command.to_string(),
             args: args,
+            detach,
         }
     }
     
@@ -33,7 +35,7 @@ pub fn run(command: RunCommand) {
 }
 
 pub fn run_container(command: RunCommand, container_id: String) {
-    let run_arg = Box::new(RunArg::new(&container_id, &command.command, command.args.clone()));
+    let run_arg = Box::new(RunArg::new(&container_id, &command.command, command.args.clone(), command.detach));
 
     const STACK_SIZE: usize = 1024 * 1024;
     let mut stack = [0; STACK_SIZE];

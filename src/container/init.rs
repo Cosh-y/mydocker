@@ -3,8 +3,10 @@ use log::{info, error};
 use nix::mount::{mount, umount2, MntFlags, MsFlags};
 use nix::unistd::execvp;
 use std::{ffi::CString, path::Path, env::set_current_dir, fs::remove_dir_all};
+use std::os::fd::AsRawFd;
 
 use crate::run::{RunArg, ROOTFS_BASE_PATH};
+use crate::container::METAINFO_BASE_PATH;
 
 fn setup_mount(container_id: &str) -> Result<(), std::io::Error> {
     mount(None::<&Path>, Path::new("/"), None::<&Path>, MsFlags::MS_PRIVATE | MsFlags::MS_REC, None::<&Path>)?;
@@ -54,11 +56,32 @@ fn setup_mount(container_id: &str) -> Result<(), std::io::Error> {
     Ok(())
 }
 
+fn setup_log(container_id: &str) {
+    let log_path = format!("{}{}/container.log", METAINFO_BASE_PATH, container_id);
+    info!("Redirecting stdout and stderr to {}", log_path);
+    let log_file = std::fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(&log_path)
+        .unwrap_or_else(|e| panic!("Failed to open log file {}: {}", log_path, e));
+
+    let fd = log_file.as_raw_fd();
+
+    unsafe {
+        libc::dup2(fd, 1); // stdout
+        libc::dup2(fd, 2); // stderr
+    }
+}
+
 pub extern "C" fn init_process(arg: *mut c_void) -> i32 {
     let run_arg_ref = unsafe { &*(arg as *mut RunArg) };
     info!("Init process started with command {}", run_arg_ref.command);
+
+    if run_arg_ref.detach {
+        setup_log(&run_arg_ref.container_id);
+    }
     
-    match setup_mount(run_arg_ref.container_id.as_str()) {
+    match setup_mount(&run_arg_ref.container_id) {
         Ok(_) => {},
         Err(e) => {
             error!("Error: mount setup failed: {}", e);

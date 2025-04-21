@@ -5,7 +5,7 @@ use rand::prelude::*;
 use crate::RunCommand;
 use crate::PsCommand;
 
-const METAINFO_BASE_PATH: &str = "/root/.mydocker/containers/";
+pub const METAINFO_BASE_PATH: &str = "/root/.mydocker/containers/";
 
 #[derive(Serialize, Deserialize)]
 struct Metainfo {

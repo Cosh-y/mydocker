@@ -5,6 +5,7 @@ mod cgroupsv2;
 mod rm;
 mod start;
 mod stop;
+mod mydocker_log;
 
 use simple_logger::SimpleLogger;
 use clap::{Parser, Subcommand};
@@ -15,7 +16,7 @@ use commit::commit_container;
 use start::start;
 use stop::stop;
 use rm::rm;
-
+use mydocker_log::log;
 #[derive(Parser)]
 #[command(author)]
 struct Cli {
@@ -31,6 +32,7 @@ enum DockerSubCmd {
     Stop(StopCommand),
     Start(StartCommand),
     Rm(RmCommand),
+    Log(LogCommand),
 }
 
 #[derive(Parser, Clone, Serialize, Deserialize, Debug)]
@@ -75,6 +77,11 @@ struct RmCommand {
     container_id: String,
 }
 
+#[derive(Parser)]
+struct LogCommand {
+    container_id: String,
+}
+
 fn main() {
     SimpleLogger::new().init().unwrap();
     let cli = Cli::parse();
@@ -96,6 +103,9 @@ fn main() {
         },
         DockerSubCmd::Rm(rm_command) => {
             rm(rm_command);
+        },
+        DockerSubCmd::Log(log_command) => {
+            log(&log_command.container_id);
         },
     }
 }
