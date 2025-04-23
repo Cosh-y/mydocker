@@ -11,8 +11,8 @@ pub fn rm(command: RmCommand) {
     }
 
     // 删除容器的工作目录
-    let container_path = format!("{}{}/", ROOTFS_BASE_PATH, container_id);
-    std::fs::remove_dir_all(&container_path).expect("Failed to remove container directory");
+    let overlayfs_path = format!("{}{}/", ROOTFS_BASE_PATH, container_id);
+    std::fs::remove_dir_all(&overlayfs_path).expect("Failed to remove container directory");
 
     // 删除容器元信息
     delete_metainfo(&container_id);

@@ -7,6 +7,7 @@ mod start;
 mod stop;
 mod mydocker_log;
 mod exec;
+mod prune;
 
 use simple_logger::SimpleLogger;
 use clap::{Parser, Subcommand};
@@ -19,6 +20,7 @@ use stop::stop;
 use rm::rm;
 use mydocker_log::log;
 use exec::exec;
+use prune::prune;
 
 #[derive(Parser)]
 #[command(author)]
@@ -37,6 +39,7 @@ enum DockerSubCmd {
     Rm(RmCommand),
     Log(LogCommand),
     Exec(ExecCommand),
+    Prune(PruneCommand),
 }
 
 #[derive(Parser, Clone, Serialize, Deserialize, Debug)]
@@ -93,6 +96,11 @@ struct ExecCommand {
     args: Vec<String>,
 }
 
+#[derive(Parser)]
+struct PruneCommand {
+    
+}
+
 fn main() {
     SimpleLogger::new().init().unwrap();
     let cli = Cli::parse();
@@ -121,5 +129,8 @@ fn main() {
         DockerSubCmd::Exec(exec_command) => {
             exec(exec_command);
         },
+        DockerSubCmd::Prune(_) => {
+            prune();
+        }
     }
 }
