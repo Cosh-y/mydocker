@@ -8,5 +8,4 @@ sudo docker run -d docker.m.daocloud.io/busybox sh
 1. 搞清楚 tty 与后台进程，实现 run -d
 2. 使用 busybox 之外的容器镜像测试
 3. 容器网络
-4. 实现 docker container prune 帮助我清理
-5. 实现 daemon 管理（前台 & 后台）进程资源
+4. 实现 daemon 管理（前台 & 后台）进程资源
