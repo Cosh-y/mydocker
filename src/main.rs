@@ -6,6 +6,7 @@ mod rm;
 mod start;
 mod stop;
 mod mydocker_log;
+mod exec;
 
 use simple_logger::SimpleLogger;
 use clap::{Parser, Subcommand};
@@ -17,6 +18,8 @@ use start::start;
 use stop::stop;
 use rm::rm;
 use mydocker_log::log;
+use exec::exec;
+
 #[derive(Parser)]
 #[command(author)]
 struct Cli {
@@ -33,6 +36,7 @@ enum DockerSubCmd {
     Start(StartCommand),
     Rm(RmCommand),
     Log(LogCommand),
+    Exec(ExecCommand),
 }
 
 #[derive(Parser, Clone, Serialize, Deserialize, Debug)]
@@ -82,6 +86,13 @@ struct LogCommand {
     container_id: String,
 }
 
+#[derive(Parser)]
+struct ExecCommand {
+    container_id: String,
+    command: String,
+    args: Vec<String>,
+}
+
 fn main() {
     SimpleLogger::new().init().unwrap();
     let cli = Cli::parse();
@@ -106,6 +117,9 @@ fn main() {
         },
         DockerSubCmd::Log(log_command) => {
             log(&log_command.container_id);
+        },
+        DockerSubCmd::Exec(exec_command) => {
+            exec(exec_command);
         },
     }
 }
