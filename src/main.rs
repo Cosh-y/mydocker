@@ -2,6 +2,7 @@ mod run;
 mod commit;
 mod container;
 mod cgroupsv2;
+mod network;
 mod rm;
 mod start;
 mod stop;
@@ -21,6 +22,7 @@ use rm::rm;
 use mydocker_log::log;
 use exec::exec;
 use prune::prune;
+use network::*;
 
 #[derive(Parser)]
 #[command(author)]
@@ -40,6 +42,7 @@ enum DockerSubCmd {
     Log(LogCommand),
     Exec(ExecCommand),
     Prune(PruneCommand),
+    Network(NetworkCommand),
 }
 
 #[derive(Parser, Clone, Serialize, Deserialize, Debug)]
@@ -101,6 +104,29 @@ struct PruneCommand {
     
 }
 
+#[derive(Parser)]
+struct NetworkCommand {
+    #[command(subcommand)]
+    subcommand: NetworkSubCommand,
+}
+
+#[derive(Subcommand)]
+enum NetworkSubCommand {
+    Create(CreateNetworkCommand),
+    // Delete(DeleteNetworkCommand),
+    // Connect(ConnectNetworkCommand),
+    // Disconnect(DisconnectNetworkCommand),
+}
+
+#[derive(Parser)]
+struct CreateNetworkCommand {
+    #[arg(long, short)]
+    subnet: String,     // subnet 和 driver 参数是强制的，没用使用 option
+    #[arg(long, short)]
+    driver: String,
+    name: String,
+}
+
 fn main() {
     SimpleLogger::new().init().unwrap();
     let cli = Cli::parse();
@@ -131,6 +157,14 @@ fn main() {
         },
         DockerSubCmd::Prune(_) => {
             prune();
+        }
+        DockerSubCmd::Network(network_command) => {
+            register_driver("bridge", Box::new(Bridge {}));
+            match network_command.subcommand {
+                NetworkSubCommand::Create(create_network_command) => {
+                    create_network(create_network_command);
+                },
+            }
         }
     }
 }
