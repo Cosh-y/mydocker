@@ -55,6 +55,8 @@ struct RunCommand {
     volume: Option<String>,
     #[arg(long, short)]
     detach: bool,
+    #[arg(long, short)]
+    net: Option<String>,
     image: String,
     command: String,
     args: Vec<String>,
@@ -121,15 +123,20 @@ enum NetworkSubCommand {
 #[derive(Parser)]
 struct CreateNetworkCommand {
     #[arg(long, short)]
-    subnet: String,     // subnet 和 driver 参数是强制的，没用使用 option
+    subnet: String,     // subnet 和 driver 参数是强制的，没有使用 option
     #[arg(long, short)]
     driver: String,
     name: String,
 }
 
 fn main() {
-    SimpleLogger::new().init().unwrap();
+    SimpleLogger::new()
+        .with_level(log::LevelFilter::Off)
+        .with_module_level("mydocker", log::LevelFilter::Info)
+        .init().unwrap();
+    
     let cli = Cli::parse();
+    register_driver("bridge", Box::new(Bridge {}));
     match cli.subcommand {
         DockerSubCmd::Run(run_command) => {
             run(run_command);
@@ -159,7 +166,6 @@ fn main() {
             prune();
         }
         DockerSubCmd::Network(network_command) => {
-            register_driver("bridge", Box::new(Bridge {}));
             match network_command.subcommand {
                 NetworkSubCommand::Create(create_network_command) => {
                     create_network(create_network_command);

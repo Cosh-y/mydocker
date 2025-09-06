@@ -14,7 +14,10 @@ pub static DRIVERS: Mutex<BTreeMap<String, Box<dyn NetworkDriver>>> = Mutex::new
 
 // 全局 runtime
 pub static TOKIO: Lazy<Runtime> = Lazy::new(|| {
-    Runtime::new().unwrap()
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
 });
 
 // 全局 handle
@@ -27,8 +30,8 @@ pub static HANDLE: Lazy<Handle> = Lazy::new(|| {
 pub trait NetworkDriver: Send + Sync {
     fn create(&self, subnet: SubNet, name: &str) -> Network;
     fn delete(&self);
-    fn connect(&self, bridge: &Network, veth: &Endpoint);
-    fn disconnect(&self, bridge: &Network, veth: &Endpoint);   
+    fn connect(&self, network_name: &str, ep: &mut Endpoint);
+    fn disconnect(&self, endpoint_id: &str);   
 }
 
 pub fn register_driver(name: &str, driver: Box<dyn NetworkDriver>) {
